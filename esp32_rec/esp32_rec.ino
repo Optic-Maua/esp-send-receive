@@ -1,5 +1,5 @@
 // ESP1 Receiver Code
-#include <esp_sleep.h>
+// #include <esp_sleep.h>
 
 const int receivePin = 5;       // GPIO pin for receiving wake-up and message
 const int ledPin = 2;           // GPIO pin for LED
@@ -13,11 +13,12 @@ void setup() {
   pinMode(receivePin, INPUT);
   pinMode(ackPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
+  
   Serial.begin(115200);
   digitalWrite(ackPin, LOW);    // Ensure ackPin is LOW initially
 
   // Set up deep sleep to wake on receivePin
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_5, HIGH); // Wake up when receivePin goes HIGH
+  // esp_sleep_enable_ext0_wakeup(GPIO_NUM_5, HIGH); // Wake up when receivePin goes HIGH
 }
 
 bool detectPreamble() {
@@ -53,7 +54,7 @@ byte readMessage() {
 
 void sendAck() {
   digitalWrite(ackPin, HIGH);
-  delay(100);               // Short HIGH pulse as acknowledgment
+  delay(500);               // Short HIGH pulse as acknowledgment
   digitalWrite(ackPin, LOW);
 }
 
@@ -66,12 +67,12 @@ void checkSleep() {
 }
 
 void loop() {
-  checkSleep();  // Check if ESP1 should enter deep sleep
+  // checkSleep();  // Check if ESP1 should enter deep sleep
 
-  if (digitalRead(receivePin) == HIGH) {  // Wake-up signal received
-    delay(500);  // Small delay to stabilize after wake-up signal
-    Serial.println("Woke up and ready to receive message.");
-  }
+//  if (digitalRead(receivePin) == HIGH) {  // Wake-up signal received
+//    delay(500);  // Small delay to stabilize after wake-up signal
+//    Serial.println("Woke up and ready to receive message.");
+//  }
 
   if (detectPreamble()) {
     byte receivedMessage = readMessage();

@@ -11,26 +11,34 @@ const int ackTimeout = 1000;     // Time to wait for acknowledgment in ms
 
 byte message1 = 0b0001;
 byte message2 = 0b0010;
-byte message2 = 0b0011;
+byte message3 = 0b0011;
 
-const char* ssid = "your-SSID";
-const char* password = "your-PASSWORD";
+const char* ssid = "Bau_chicka_bau_uau";
+const char* password = "EdnaldoPereira78";
 
 void setup() {
-  pinMode(sendPin, OUTPUT);  
-  pinMode(ackPin, INPUT);   
-  pinMode(wakeUpPin, OUTPUT); // Set wakeUpPin as output for wake-up signal
+  pinMode(sendPin, OUTPUT);
+  pinMode(ackPin, INPUT);  
   
   Serial.begin(115200);
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi...");
-  while (WiFi.status() != WL_CONNECTED) {
+  Serial.println("Connecting to Wi-Fi...");
+
+  unsigned long startAttemptTime = millis();
+
+  // Keep trying to connect for 10 seconds (10000 ms)
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nConnected to Wi-Fi");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected to Wi-Fi");
+  } else {
+    Serial.println("\nFailed to connect to Wi-Fi");
+  }
   
 }
 
@@ -75,16 +83,17 @@ void sendPost(int targetId) {
     HTTPClient http;
 
     // Specify the URL
-    http.begin("sitefoda.com/api/slave_down");  // URL to send the POST request to
+    http.begin("http://httpbin.org/post");  // URL to send the POST request to
 
     // Set the content type and other headers if needed
-    http.addHeader("Content-Type", "application/json");
+    // http.addHeader("Content-Type", "application/json");
 
     // Your JSON data or payload
-    String payload = "{\"slave_id\":\"3\"}";
+    String payload = "{\"slave_id\":" + String(targetId) + "}";
 
     // Send POST request
     int httpResponseCode = http.POST(payload);
+    // int httpResponseCode = http.GET();
 
     // Check the response code
     if (httpResponseCode > 0) {
@@ -139,4 +148,6 @@ void loop() {
 
   sendWithRetry(message3);
   delay(interMessageDelay);  // Wait before repeating
+
+  delay(5000);
 }
