@@ -6,14 +6,13 @@ const int ledPin = 2;           // GPIO pin for LED
 const int ackPin = 4;           // GPIO pin to send acknowledgment
 const int bitDelay = 500;       // Should match ESP0's bit delay time
 const int pulseDelay = 200;     // Should match ESP0's pulse delay for preamble
-const byte targetMessage = 0b0001;  // Target message for this ESP1
+const byte targetMessage = 0b00000010;  // Target message for this ESP1
 unsigned long lastMessageTime = 0;  // Tracks the last time a message was received
 
 void setup() {
   pinMode(receivePin, INPUT);
   pinMode(ackPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
-  
   Serial.begin(115200);
   digitalWrite(ackPin, LOW);    // Ensure ackPin is LOW initially
 
@@ -42,7 +41,7 @@ bool detectPreamble() {
 
 byte readMessage() {
   byte message = 0;
-  for (int i = 3; i >= 0; i--) {
+  for (int i = 7; i >= 0; i--) {
     int signal = digitalRead(receivePin);
     if (signal == HIGH) {
       message |= (1 << i);
@@ -58,13 +57,13 @@ void sendAck() {
   digitalWrite(ackPin, LOW);
 }
 
-void checkSleep() {
-  if (millis() - lastMessageTime > 60000) {  // 1 minute inactivity
-    Serial.println("Entering deep sleep.");
-    delay(100);  // Small delay before sleeping
-    esp_deep_sleep_start();
-  }
-}
+//void checkSleep() {
+//  if (millis() - lastMessageTime > 60000) {  // 1 minute inactivity
+//    Serial.println("Entering deep sleep.");
+//    delay(100);  // Small delay before sleeping
+//    esp_deep_sleep_start();
+//  }
+//}
 
 void loop() {
   // checkSleep();  // Check if ESP1 should enter deep sleep
