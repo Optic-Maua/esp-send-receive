@@ -1,6 +1,8 @@
 // ESP0 Sender Code
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <vector>
 
 const int sendPin = 5;           // GPIO pin for sending message
 const int ackPin = 4;            // GPIO pin to receive acknowledgment
@@ -9,9 +11,7 @@ const int pulseDelay = 200;      // Delay for each pulse in preamble
 const int interMessageDelay = 2000;  // Delay between messages
 const int ackTimeout = 1000;     // Time to wait for acknowledgment in ms
 
-byte message1 = 0b0001;
-byte message2 = 0b0010;
-byte message3 = 0b0011;
+int lineId = 0;
 
 const char* ssid = "Bau_chicka_bau_uau";
 const char* password = "EdnaldoPereira78";
@@ -42,12 +42,12 @@ void setup() {
   
 }
 
-void sendWakeUp() {
-  digitalWrite(sendPin, HIGH);
-  delay(500);                  // Send a 500ms pulse to wake up ESP1
-  digitalWrite(sendPin, LOW);
-  delay(500);                  // Allow ESP1 to stabilize after wake-up
-}
+//void sendWakeUp() {
+//  digitalWrite(sendPin, HIGH);
+//  delay(500);                  // Send a 500ms pulse to wake up ESP1
+//  digitalWrite(sendPin, LOW);
+//  delay(500);                  // Allow ESP1 to stabilize after wake-up
+//}
 
 void sendPreamble() {
   for (int i = 0; i < 4; i++) {  
@@ -59,7 +59,7 @@ void sendPreamble() {
 }
 
 void sendMessage(byte message) {
-  for (int i = 3; i >= 0; i--) {
+  for (int i = 7; i >= 0; i--) {
     bool bitValue = (message >> i) & 0x01;
     digitalWrite(sendPin, bitValue ? HIGH : LOW);
     delay(bitDelay);
@@ -77,23 +77,25 @@ bool waitForAck() {
   return false;
 }
 
-void sendPost(int targetId) {
+void sendPost(int targetId, String currentStatus) {
   
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
 
     // Specify the URL
-    http.begin("http://httpbin.org/post");  // URL to send the POST request to
+    String url = "https://admin-dashboard-silk-gamma.vercel.app/api/change-status?id=" + String(targetId) + "&status=" + String(currentStatus);
+    http.begin(url);  // URL to send the POST request to
+    // Serial.println(url);
+    
 
     // Set the content type and other headers if needed
-    // http.addHeader("Content-Type", "application/json");
+    //http.addHeader("Content-Type", "application/json");
 
     // Your JSON data or payload
-    String payload = "{\"slave_id\":" + String(targetId) + "}";
+    String payload = "";
 
     // Send POST request
     int httpResponseCode = http.POST(payload);
-    // int httpResponseCode = http.GET();
 
     // Check the response code
     if (httpResponseCode > 0) {
@@ -125,6 +127,7 @@ void sendWithRetry(byte message) {
     if (waitForAck()) {
       Serial.print("Acknowledgment received from ESP");
       Serial.println(targetId);
+      sendPost(targetId, "ON");
       return;  // Stop retrying if acknowledgment is received
     } else {
       Serial.print("No acknowledgment from ESP");
@@ -134,20 +137,65 @@ void sendWithRetry(byte message) {
   }
 
   // If both attempts failed
-  sendPost(targetId);
+  sendPost(targetId, "OFF");
+}
+
+std::vector<int> getIdsFromLine(int lineId) {
+  std::vector<int> idArray;  // Array to store the IDs
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin("https://admin-dashboard-silk-gamma.vercel.app/api/line?line=" + String(lineId));
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode > 0) { // Check for successful response
+      String responseBody = http.getString();
+      Serial.println("Response:");
+      Serial.println(responseBody);
+
+      // Parse JSON response
+      DynamicJsonDocument doc(1024);  // Adjust size based on expected JSON size
+      DeserializationError error = deserializeJson(doc, responseBody);
+
+      if (!error) {
+        JsonArray ids = doc.as<JsonArray>();
+
+        // Populate the vector with IDs from the JSON array
+        for (int id : ids) {
+          idArray.push_back(id);
+        }
+      } else {
+        Serial.print("JSON parsing failed: ");
+        Serial.println(error.c_str());
+      }
+    } else {
+      Serial.print("Error on HTTP request: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end(); // Close connection
+  } else {
+    Serial.println("WiFi not connected");
+  }
+
+  return idArray;  // Return the vector of IDs
+}
+
+byte idToByte(int id) {
+  // Truncate or wrap the ID to fit within 8 bits
+  return static_cast<byte>(id); 
 }
 
 void loop() {
-  sendWakeUp();  // Send wake-up signal before each message
 
-  sendWithRetry(message1);
-  delay(interMessageDelay);  // Wait before sending the next message
+  int lineId = 3;
 
-  sendWithRetry(message2);
-  delay(interMessageDelay);  // Wait before repeating
+  std::vector<int> ids = getIdsFromLine(lineId);
 
-  sendWithRetry(message3);
-  delay(interMessageDelay);  // Wait before repeating
+  for (size_t i = 0; i < ids.size(); i++) {
+    byte message = idToByte(ids[i]);
+    sendWithRetry(message);
+  }
 
-  delay(5000);
+  delay(60000);
 }
